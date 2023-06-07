@@ -6,7 +6,7 @@ authentication = Blueprint("authentication", __name__)
 
 @authentication.route("/")
 def home():
-    return "The API is ready to be used"
+    return "The server is ready to be used"
 
 
 @authentication.route("/db-content", methods=["GET"])
@@ -131,7 +131,28 @@ def modify_content(uuid: int):
         account_to_update = db.session.query(Account).filter(Account.id == uuid).first()
         if account_to_update:
             for column_name in request_params.keys():
-                setattr(account_to_update, column_name, request_params[column_name])
+                if column_name in Account.get_model_fields():
+                    if column_name == "password":
+                        if "password_validation" in request_params.keys():
+                            is_original_password_validated = flask_bcrypt.check_password_hash(account_to_update.password, 
+                                                                                              request_params["password_validation"])
+                            if is_original_password_validated:
+                                password_validity_check = services.check_password_validity(request_params[column_name])
+                                is_password_valid = password_validity_check["validity"]
+                                password_not_valid_message = password_validity_check["message"]
+                                if is_password_valid:
+                                    new_password = flask_bcrypt.generate_password_hash(request_params[column_name]).decode("utf-8")
+                                    setattr(account_to_update, column_name, new_password)
+                                else:
+                                    return make_response(jsonify({"status": "failure", "message": password_not_valid_message, "code": "400"}), 400)
+                            else:
+                                message = "wrong original password"
+                                return make_response(jsonify({"status": "failure", "message": message, "code": "400"}), 400)    
+                        else:
+                            message = "'password_validation' field missing (should contain original password as value)"
+                            return make_response(jsonify({"status": "failure", "message": message, "code": "400"}), 400)
+                    else:
+                        setattr(account_to_update, column_name, request_params[column_name])
             db.session.commit()
             return make_response(jsonify({"status": "success", "message": "the account has been updated", "code": "200"}), 200)
         else:
@@ -146,7 +167,7 @@ def reset_optional_field(uuid: int):
     try:
         account_to_update = db.session.query(Account).filter(Account.id == uuid).first()
         if account_to_update:
-            required_fields: list[str] = Account.get_required_fields() + Account.get_auto_completed_required_fields()
+            required_fields: list[str] = Account.get_model_fields("required") + Account.get_model_fields("auto")
             new_body = {param: (getattr(account_to_update, param) if param in required_fields else None) 
                         for param in Account.__table__.columns.keys()}
             for column_name, new_value in new_body.items():

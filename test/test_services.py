@@ -1,5 +1,5 @@
 from api.services import *
-from .helper import create_test_db_session, close_test_db_session
+from .test_helper import create_test_db_session, close_test_db_session
 
 
 def test_optional_fields_returns_correct_dict():
@@ -41,20 +41,23 @@ def test_username_unicity_checker_works():
 def test_password_checker_works():
     password = "test"
     assert not check_password_validity(password)["validity"]
-    assert len(check_password_validity(password)["message"]) == 3
+    assert len(check_password_validity(password)["message"]) == 4
     password = "TEST"
     assert not check_password_validity(password)["validity"]
-    assert len(check_password_validity(password)["message"]) == 3
+    assert len(check_password_validity(password)["message"]) == 4
     password = "testpw"
     assert not check_password_validity(password)["validity"]
-    assert len(check_password_validity(password)["message"]) == 2
+    assert len(check_password_validity(password)["message"]) == 3
     password = "Testpw"
     assert not check_password_validity(password)["validity"]
-    assert len(check_password_validity(password)["message"]) == 1
+    assert len(check_password_validity(password)["message"]) == 2
     password = "testpw*"
     assert not check_password_validity(password)["validity"]
-    assert len(check_password_validity(password)["message"]) == 1
+    assert len(check_password_validity(password)["message"]) == 2
     password = "Testpw*"
+    assert not check_password_validity(password)["validity"]
+    assert len(check_password_validity(password)["message"]) == 1
+    password = "Testpw0*"
     assert check_password_validity(password)["validity"]
     assert len(check_password_validity(password)["message"]) == 0
 

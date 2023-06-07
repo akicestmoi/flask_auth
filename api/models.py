@@ -33,16 +33,21 @@ class Account(db.Model):
         del account_dict["_sa_instance_state"]
         return account_dict
 
-    @staticmethod
-    def get_auto_completed_required_fields() -> list[str]:
-        return ["id", "is_logged_in"]
-
 
     @staticmethod
-    def get_required_fields() -> list[str]:
-        return ["email", "username", "password"]
+    def get_model_fields(method: str="all") -> list[str]:
+        auto = ["id", "is_logged_in"]
+        required = ["email", "username", "password"]
+        optional = ["gender", "phone_number", "address"]
+
+        if method == "auto":
+            return auto
+        elif method == "required":
+            return required
+        elif method == "optional":
+            return optional
+        else:
+            return auto + required + optional
+    
     
 
-    @staticmethod
-    def get_optional_fields() -> list[str]:
-        return ["gender", "phone_number", "address"]

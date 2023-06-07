@@ -1,5 +1,5 @@
 import requests
-from .helper import get_account_data, get_account_specifics
+from .test_helper import get_account_data, get_account_specifics
 from api.models import Account, flask_bcrypt
 
 
@@ -28,8 +28,40 @@ def test_database_is_accessible():
 
 def test_signup_works():
     endpoint = base_endpoint + "/signup"
-    response = requests.post(endpoint, json=request_body)
+
+    body_missing_required_fields = {
+        "email": "test_email@test.com"
+    }
+    response = requests.post(endpoint, json=body_missing_required_fields)
+    assert response.status_code == 400
+
+    wrong_password_body = {
+        "email": "test_email@test.com",
+        "username": "test_name",
+        "password": "wrong_password"
+    }
+    response = requests.post(endpoint, json=wrong_password_body)
+    assert response.status_code == 400
+
+    valid_body = request_body
+    response = requests.post(endpoint, json=valid_body)
     assert response.status_code == 200
+
+    not_unique_email_body = {
+        "email": "test_email@test.com",
+        "username": "new_user",
+        "password": "Testpw0-"
+    }
+    response = requests.post(endpoint, json=not_unique_email_body)
+    assert response.status_code == 400
+
+    not_unique_username_body = {
+        "email": "new_test_email@test.com",
+        "username": "test_name",
+        "password": "Testpw0-"
+    }
+    response = requests.post(endpoint, json=not_unique_username_body)
+    assert response.status_code == 400
 
     posted_data = get_account_data(request_body["email"])
     additionnal_body = {
@@ -54,6 +86,11 @@ def test_can_get_single_account():
     response = requests.get(endpoint)
     assert response.status_code == 200 and response.json()
 
+    non_existent_id = "10000"
+    endpoint = base_endpoint + "/accounts/" + non_existent_id
+    response = requests.get(endpoint)
+    assert response.status_code == 400
+
 
 
 def test_logout_works():   
@@ -65,30 +102,39 @@ def test_logout_works():
     account_status = get_account_specifics(request_body["email"], "is_logged_in")
     assert account_status == False
 
+    already_logged_out_endpoint = endpoint
+    response = requests.patch(already_logged_out_endpoint)
+    assert response.status_code == 400
+
+    non_existent_id = "10000"
+    endpoint = base_endpoint + "/accounts/" + non_existent_id
+    response = requests.get(endpoint)
+    assert response.status_code == 400
+
 
 
 def test_login_works():
     endpoint = base_endpoint + "/login"
 
-    login_body = {
+    all_wrong_login_body = {
         "username": "",
         "password": "",
     }
-    response = requests.patch(endpoint, json=login_body)
+    response = requests.patch(endpoint, json=all_wrong_login_body)
     assert response.status_code == 400
 
-    login_body = {
+    wrong_username_login_body = {
         "username": "",
         "password": request_body["password"],
     }
-    response = requests.patch(endpoint, json=login_body)
+    response = requests.patch(endpoint, json=wrong_username_login_body)
     assert response.status_code == 400
 
-    login_body = {
+    wrong_password_login_body = {
         "username": request_body["username"],
         "password": "wrong_password"
     }
-    response = requests.patch(endpoint, json=login_body)
+    response = requests.patch(endpoint, json=wrong_password_login_body)
     assert response.status_code == 400
 
     login_body = {
@@ -101,6 +147,13 @@ def test_login_works():
     account_status = get_account_specifics(request_body["email"], "is_logged_in")
     assert account_status == True
 
+    already_logged_in_body = {
+        "username": request_body["username"],
+        "password": request_body["password"],
+    }
+    response = requests.patch(endpoint, json=already_logged_in_body)
+    assert response.status_code == 400
+
 
 
 def test_content_modification():
@@ -109,6 +162,7 @@ def test_content_modification():
 
     patch_body = {
         "gender": "F",
+        "random_field": "random_value", 
         "phone_number": "0143058596"
     }
     response = requests.patch(endpoint, json=patch_body)
@@ -119,6 +173,46 @@ def test_content_modification():
     phone_number = patched_data["phone_number"]
     assert gender == patch_body["gender"] and phone_number == patch_body["phone_number"]
 
+    wrong_password_patch_body = {
+        "gender": "M",
+        "password": "wrong_password"
+    }
+    response = requests.patch(endpoint, json=wrong_password_patch_body)
+    assert response.status_code == 400
+    
+    gender = get_account_specifics(request_body["email"], "gender")
+    assert not gender == "M"
+
+    valid_password = "Test-pw1"
+    valid_password_change_body_no_original_validation = {
+        "password": valid_password
+    }
+    response = requests.patch(endpoint, json=valid_password_change_body_no_original_validation)
+    assert response.status_code == 400
+
+    valid_password_change_body_but_unvalidated = {
+        "password_validation": "wrong original password",
+        "password": valid_password
+    }
+    response = requests.patch(endpoint, json=valid_password_change_body_but_unvalidated)
+    assert response.status_code == 400
+
+    valid_password_change_body_with_original_validation = {
+        "password_validation": request_body["password"],
+        "password": valid_password
+    }
+    response = requests.patch(endpoint, json=valid_password_change_body_with_original_validation)
+    assert response.status_code == 200
+    
+    modified_hash_password_in_db = get_account_specifics(request_body["email"], "password")
+    assert not flask_bcrypt.check_password_hash(modified_hash_password_in_db, request_body["password"])
+    assert flask_bcrypt.check_password_hash(modified_hash_password_in_db, valid_password)
+
+    non_existent_id = "10000"
+    endpoint = base_endpoint + "/accounts/" + non_existent_id
+    response = requests.get(endpoint)
+    assert response.status_code == 400
+
 
 
 def test_reset_optional_field():
@@ -128,9 +222,14 @@ def test_reset_optional_field():
     assert response.status_code == 200
 
     put_data = get_account_data(request_body["email"])
-    optional_fields = Account.get_optional_fields()
+    optional_fields = Account.get_model_fields("optional")
     validity_check_list = ["X" for field in optional_fields if put_data[field] is not None]
     assert len(validity_check_list) == 0
+
+    non_existent_id = "10000"
+    endpoint = base_endpoint + "/accounts/" + non_existent_id
+    response = requests.get(endpoint)
+    assert response.status_code == 400
 
 
 
@@ -141,5 +240,6 @@ def test_delete_works():
     response = requests.delete(endpoint)
     assert response.status_code == 200
 
-    response = requests.get(endpoint)
+    already_deleted_endpoint = endpoint
+    response = requests.get(already_deleted_endpoint)
     assert response.status_code == 400
