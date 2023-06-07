@@ -1,10 +1,9 @@
-import environ
+import os
+from dotenv import load_dotenv
 
-env = environ.Env()
-environ.Env.read_env()
-
+load_dotenv()
 
 class Config():
     
-    SQLALCHEMY_DATABASE_URI = env("SQLALCHEMY_DATABASE_URI")
+    SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
