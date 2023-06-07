@@ -89,7 +89,7 @@ def test_can_get_single_account():
     non_existent_id = "10000"
     endpoint = base_endpoint + "/accounts/" + non_existent_id
     response = requests.get(endpoint)
-    assert response.status_code == 400
+    assert response.status_code == 404
 
 
 
@@ -109,7 +109,7 @@ def test_logout_works():
     non_existent_id = "10000"
     endpoint = base_endpoint + "/accounts/" + non_existent_id
     response = requests.get(endpoint)
-    assert response.status_code == 400
+    assert response.status_code == 404
 
 
 
@@ -211,7 +211,7 @@ def test_content_modification():
     non_existent_id = "10000"
     endpoint = base_endpoint + "/accounts/" + non_existent_id
     response = requests.get(endpoint)
-    assert response.status_code == 400
+    assert response.status_code == 404
 
 
 
@@ -229,7 +229,7 @@ def test_reset_optional_field():
     non_existent_id = "10000"
     endpoint = base_endpoint + "/accounts/" + non_existent_id
     response = requests.get(endpoint)
-    assert response.status_code == 400
+    assert response.status_code == 404
 
 
 
@@ -242,4 +242,4 @@ def test_delete_works():
 
     already_deleted_endpoint = endpoint
     response = requests.get(already_deleted_endpoint)
-    assert response.status_code == 400
+    assert response.status_code == 404
