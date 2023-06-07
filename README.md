@@ -6,14 +6,14 @@ It is designed following the Flask Factory Pattern in order to enhance the proje
 
 ## Database Schema
 The table on which the API relies on is designed as follows:
-- id: integer. Primary Key, auto filled by SQLAlchemy.
-- email: string. Required field. Has to be unique.
-- username: string. Required field. Has to be unique.
-- password: string. Required field. Hashed based on Flask-Bcrypt algorithm. Must contain at least 6 characters, 1 Upper case, 1 Lower case, 1 numerical character, 1 Special character.
-- gender: string. Optional field, None by default.
-- phone_number: string. Optional field, None by default.
-- address: string. string. Optional field, None by default.
-- is_logged_in: boolean. Auto-filled by the API upon creation to True. Indicates account status for Front-End session management.
+- *id*: integer. Primary Key, auto filled by SQLAlchemy.
+- *email*: string. Required field. Has to be unique.
+- *username*: string. Required field. Has to be unique.
+- *password*: string. Required field. Hashed based on Flask-Bcrypt algorithm. Must contain at least 6 characters, 1 Upper case, 1 Lower case, 1 numerical character, 1 Special character.
+- *gender*: string. Optional field, None by default.
+- *phone_number*: string. Optional field, None by default.
+- *address*: string. string. Optional field, None by default.
+- *is_logged_in*: boolean. Auto-filled by the API upon creation to True. Indicates account status for Front-End session management.
 
 ## Functionnality
 The project is a backend server providing APIs for authentication, including the following functionality:
@@ -32,7 +32,7 @@ The project is a backend server providing APIs for authentication, including the
 ## Available Routes
 - /
 - /db-content (GET)
-- /accounts/<uuid> (GET, PATCH, PUT, DELETE)
+- /accounts/<uuid> (GET, PUT, DELETE, PATCH + body: [field to modify (include "password_validation" with original password to modify "password")])
 - /signup (POST + body: [Required field, Optional field])
 - /login (PATCH + body: [username, password])
 - /logout/<uuid> (PATCH)
