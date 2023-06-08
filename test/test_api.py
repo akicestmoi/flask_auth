@@ -141,20 +141,17 @@ def test_login_works() -> None:
     response: Response = requests.post(endpoint, json=wrong_password_login_body)
     assert response.status_code == 400
 
-    login_body: dict[str, str] = {
+    valid_login_body: dict[str, str] = {
         "username": request_body["username"],
         "password": request_body["password"],
     }
-    response: Response = requests.post(endpoint, json=login_body)
+    response: Response = requests.post(endpoint, json=valid_login_body)
     assert response.status_code == 200
 
     account_status: bool = get_account_specifics(request_body["email"], "is_logged_in")
     assert account_status == True
 
-    already_logged_in_body: dict[str, str] = {
-        "username": request_body["username"],
-        "password": request_body["password"],
-    }
+    already_logged_in_body: dict[str, str] = valid_login_body
     response: Response = requests.post(endpoint, json=already_logged_in_body)
     assert response.status_code == 400
 
@@ -169,18 +166,18 @@ def test_content_modification() -> None:
     id_to_patch: int = get_account_specifics(request_body["email"], "id")
     endpoint: str = base_endpoint + "/accounts/" + str(id_to_patch)
 
-    patch_body: dict[str, str] = {
+    valid_patch_body: dict[str, str] = {
         "gender": "F",
         "random_field": "random_value", 
         "phone_number": "0143058596"
     }
-    response: Response = requests.patch(endpoint, json=patch_body)
+    response: Response = requests.patch(endpoint, json=valid_patch_body)
     assert response.status_code == 200
 
-    patched_data = get_account_data(request_body["email"])
-    gender = patched_data["gender"]
-    phone_number = patched_data["phone_number"]
-    assert gender == patch_body["gender"] and phone_number == patch_body["phone_number"]
+    data_after_patch = get_account_data(request_body["email"])
+    gender = data_after_patch["gender"]
+    phone_number = data_after_patch["phone_number"]
+    assert gender == data_after_patch["gender"] and phone_number == data_after_patch["phone_number"]
 
     wrong_password_patch_body = {
         "gender": "M",
@@ -192,18 +189,28 @@ def test_content_modification() -> None:
     gender: str | None = get_account_specifics(request_body["email"], "gender")
     assert not gender == "M"
 
+    non_existent_id: str = "10000"
+    endpoint: str = base_endpoint + "/accounts/" + non_existent_id
+    response: Response = requests.get(endpoint)
+    assert response.status_code == 404
+
+
+def test_password_modification() -> None:
+    id_to_patch: int = get_account_specifics(request_body["email"], "id")
+    endpoint: str = base_endpoint + "/accounts/" + str(id_to_patch)
+
     valid_password: str = "Test-pw1"
-    valid_password_change_body_no_original_validation: dict[str, str] = {
+    no_original_password_validation_body: dict[str, str] = {
         "password": valid_password
     }
-    response: Response = requests.patch(endpoint, json=valid_password_change_body_no_original_validation)
+    response: Response = requests.patch(endpoint, json=no_original_password_validation_body)
     assert response.status_code == 400
 
-    valid_password_change_body_but_unvalidated: dict[str, str] = {
+    unvalid_original_password_validation_body: dict[str, str] = {
         "password_validation": "wrong original password",
         "password": valid_password
     }
-    response: Response = requests.patch(endpoint, json=valid_password_change_body_but_unvalidated)
+    response: Response = requests.patch(endpoint, json=unvalid_original_password_validation_body)
     assert response.status_code == 400
 
     valid_password_change_body_with_original_validation: dict[str, str] = {
@@ -216,12 +223,6 @@ def test_content_modification() -> None:
     modified_hash_password_in_db: str = get_account_specifics(request_body["email"], "password")
     assert not flask_bcrypt.check_password_hash(modified_hash_password_in_db, request_body["password"])
     assert flask_bcrypt.check_password_hash(modified_hash_password_in_db, valid_password)
-
-    non_existent_id: str = "10000"
-    endpoint: str = base_endpoint + "/accounts/" + non_existent_id
-    response: Response = requests.get(endpoint)
-    assert response.status_code == 404
-
 
 
 def test_reset_optional_field() -> None:
