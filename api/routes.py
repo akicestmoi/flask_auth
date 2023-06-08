@@ -115,7 +115,6 @@ def login() -> Response:
 def home() -> Response:
     try:
         account: LocalProxy = current_user
-        print(type(account))
         if account.is_anonymous:
             return make_response(jsonify({"status": "failure", "message": "login required", "code": "401"}), 401)
         
