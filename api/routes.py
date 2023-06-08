@@ -38,6 +38,7 @@ def get_account(id: int) -> Response:
             return make_response(jsonify({"status": "failure", "message": "the account does not exist", "code": "404"}), 404)
         
         return make_response(jsonify({"status": "success", "message": account_info.convert_to_dict(), "code": "200"}), 200)
+    
     except Exception as e:
         print(e)
         return make_response(jsonify({"status": "failure", "message": "account request failed", "code": "500"}), 500)
@@ -112,14 +113,18 @@ def login() -> Response:
 @authentication.route("/home")
 @login_required
 def home() -> Response:
+    try:
+        account: LocalProxy = current_user
+        print(type(account))
+        if account.is_anonymous:
+            return make_response(jsonify({"status": "failure", "message": "login required", "code": "401"}), 401)
+        
+        welcome_message: str = "Welcome " + account.username + "!"
+        return welcome_message
     
-    account: LocalProxy = current_user
-    print(type(account))
-    if account.is_anonymous:
-        return make_response(jsonify({"status": "failure", "message": "login required", "code": "401"}), 401)
-    
-    welcome_message: str = "Welcome " + account.username + "!"
-    return welcome_message
+    except Exception as e:
+        print(e)
+        return make_response(jsonify({"status": "failure", "message": "access to homepage failed", "code": "500"}), 500)
 
 
 @authentication.route("/logout/<id>", methods=["POST"])
@@ -138,7 +143,8 @@ def logout(id: int) -> Response:
         logout_user()
         return make_response(jsonify({"status": "success", "message": "the account has been logged out", "code": "200"}), 200)
             
-    except:
+    except Exception as e:
+        print(e)
         return make_response(jsonify({"status": "failure", "message": "logout request failed", "code": "500"}), 500)
 
 
