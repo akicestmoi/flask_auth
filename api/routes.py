@@ -1,10 +1,18 @@
 from flask import Blueprint, Response, request, make_response, jsonify
 from flask_sqlalchemy.query import Query
-from .models import Account, db, flask_bcrypt
+from flask_login import login_required, login_user, logout_user, current_user
+from werkzeug.local import LocalProxy
+from .models import Account, db, flask_bcrypt, login_manager
 from . import services
 
 
 authentication: Blueprint = Blueprint("authentication", __name__)
+
+
+@login_manager.user_loader
+def load_user(id: int) -> Account | None:
+    return db.session.query(Account).filter(Account.id == id).first()
+
 
 @authentication.route("/")
 def base() -> str:
@@ -67,6 +75,7 @@ def signup() -> Response:
                                        address=optional_fields_dict["address"], is_logged_in=True)
         db.session.add(new_account)
         db.session.commit()
+        login_user(new_account)
         return make_response(jsonify({"status": "success", "message": "signup success", "code": "200"}), 200)
                     
     except Exception as e:
@@ -92,6 +101,7 @@ def login() -> Response:
                     
         account.is_logged_in: bool = True
         db.session.commit()
+        login_user(account)
         return make_response(jsonify({"status": "success", "message": "login success", "code": "200"}), 200)
                
     except Exception as e:
@@ -100,14 +110,20 @@ def login() -> Response:
     
 
 @authentication.route("/home")
-#@login_required
+@login_required
 def home() -> Response:
-    welcome_message: str = "Welcome"
+    
+    account: LocalProxy = current_user
+    print(type(account))
+    if account.is_anonymous:
+        return make_response(jsonify({"status": "failure", "message": "login required", "code": "401"}), 401)
+    
+    welcome_message: str = "Welcome " + account.username + "!"
     return welcome_message
 
 
 @authentication.route("/logout/<id>", methods=["POST"])
-#@login_required
+@login_required
 def logout(id: int) -> Response:
     try:
         account_to_logout: Account | None = db.session.query(Account).filter(Account.id == id).first()
@@ -119,6 +135,7 @@ def logout(id: int) -> Response:
         
         account_to_logout.is_logged_in: bool = False
         db.session.commit()
+        logout_user()
         return make_response(jsonify({"status": "success", "message": "the account has been logged out", "code": "200"}), 200)
             
     except:

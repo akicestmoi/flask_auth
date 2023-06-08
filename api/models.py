@@ -1,11 +1,13 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
+from flask_login import LoginManager, UserMixin
 
 db: SQLAlchemy = SQLAlchemy()
 flask_bcrypt: Bcrypt = Bcrypt()
+login_manager: LoginManager = LoginManager()
 
 
-class Account(db.Model):
+class Account(db.Model, UserMixin):
 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String, nullable=True)

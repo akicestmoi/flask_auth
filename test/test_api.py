@@ -48,6 +48,9 @@ def test_signup_works() -> None:
     response: Response = requests.post(endpoint, json=valid_body)
     assert response.status_code == 200
 
+    account_status: bool = get_account_specifics(request_body["email"], "is_logged_in")
+    assert account_status == True
+
     not_unique_email_body: dict[str, str] = {
         "email": "test_email@test.com",
         "username": "new_user",
@@ -155,6 +158,11 @@ def test_login_works() -> None:
     response: Response = requests.post(endpoint, json=already_logged_in_body)
     assert response.status_code == 400
 
+
+def test_welcome_page_requires_login() -> None:
+    endpoint: str = base_endpoint + "/home"
+    response: Response = requests.get(endpoint)
+    assert response.status_code == 401
 
 
 def test_content_modification() -> None:
