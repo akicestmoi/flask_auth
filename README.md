@@ -1,7 +1,7 @@
 # flask_auth
 
 ## Stack
-This API is based on Python Flask library and uses PostgreSQL as databases. It also uses Flask-SQLAlchemy as ORM and Pytest for Unit Testing.
+This API is based on Python Flask library and uses PostgreSQL as databases. It also uses Flask-SQLAlchemy as ORM and Pytest for Unit Testing. It also uses: Flask-Bcrypt for password hashing, Flask-login for session management.
 It is designed following the Flask Factory Pattern in order to enhance the project modularity in case the projet expands.
 
 ## Database Schema
@@ -32,7 +32,8 @@ The project is a backend server providing APIs for authentication, including the
 ## Available Routes
 - /
 - /db-content (GET)
-- /accounts/<uuid> (GET, PUT, DELETE, PATCH + body: [field to modify (include "password_validation" with original password to modify "password")])
+- /accounts/<id> (GET, PUT, DELETE, PATCH + body: [field to modify (include "password_validation" with original password to modify "password")])
 - /signup (POST + body: [Required field, Optional field])
-- /login (PATCH + body: [username, password])
-- /logout/<uuid> (PATCH)
+- /login (POST + body: [username, password])
+- /home (login is required)
+- /logout/<id> (POST, login is required)

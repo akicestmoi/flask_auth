@@ -1,8 +1,8 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 
-db = SQLAlchemy()
-flask_bcrypt = Bcrypt()
+db: SQLAlchemy = SQLAlchemy()
+flask_bcrypt: Bcrypt = Bcrypt()
 
 
 class Account(db.Model):
@@ -18,27 +18,27 @@ class Account(db.Model):
 
 
     def __init__(self, email: str, username: str, password: str, is_logged_in: bool, gender: str | None, 
-                 phone_number: int | None, address: str | None) -> None:
-        self.email = email
-        self.username = username
-        self.password = password
-        self.is_logged_in = is_logged_in
-        self.gender = gender
-        self.phone_number = phone_number
-        self.address = address
+                 phone_number: str | None, address: str | None) -> None:
+        self.email: str = email
+        self.username: str = username
+        self.password: str = password
+        self.is_logged_in: bool = is_logged_in
+        self.gender: str | None = gender
+        self.phone_number: str | None = phone_number
+        self.address: str | None = address
 
 
-    def convert_to_dict(self):
-        account_dict = self.__dict__
+    def convert_to_dict(self) -> dict[str, str]:
+        account_dict: dict[str, str] = self.__dict__
         del account_dict["_sa_instance_state"]
         return account_dict
 
 
     @staticmethod
     def get_model_fields(method: str="all") -> list[str]:
-        auto = ["id", "is_logged_in"]
-        required = ["email", "username", "password"]
-        optional = ["gender", "phone_number", "address"]
+        auto: list[str] = ["id", "is_logged_in"]
+        required: list[str] = ["email", "username", "password"]
+        optional: list[str] = ["gender", "phone_number", "address"]
 
         if method == "auto":
             return auto

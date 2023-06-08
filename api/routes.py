@@ -1,28 +1,31 @@
-from flask import Blueprint, request, make_response, jsonify
+from flask import Blueprint, Response, request, make_response, jsonify
+from flask_sqlalchemy.query import Query
 from .models import Account, db, flask_bcrypt
 from . import services
 
-authentication = Blueprint("authentication", __name__)
+
+authentication: Blueprint = Blueprint("authentication", __name__)
 
 @authentication.route("/")
-def home():
+def base() -> str:
     return "The server is ready to be used"
 
 
 @authentication.route("/db-content", methods=["GET"])
-def show_db_content():
+def show_db_content() -> Response:
     try:
-        all_accounts = db.session.query(Account).order_by(Account.id)
-        return make_response(jsonify([account.convert_to_dict() for account in all_accounts]), 200)
+        all_accounts: Query = db.session.query(Account).order_by(Account.id)
+        account_lists: list[dict[str, str | None]] = [account.convert_to_dict() for account in all_accounts]
+        return make_response(jsonify(account_lists), 200)
     except Exception as e:
         print(e)
         return make_response(jsonify({"status": "failure", "message": "get request failed", "code": "500"}), 500)
 
 
 @authentication.route("/accounts/<id>", methods=["GET"])
-def get_account(id: int):
+def get_account(id: int) -> Response:
     try:
-        account_info = db.session.query(Account).filter(Account.id == id).first()
+        account_info: Account | None = db.session.query(Account).filter(Account.id == id).first()
         if not account_info:
             return make_response(jsonify({"status": "failure", "message": "the account does not exist", "code": "404"}), 404)
         
@@ -33,35 +36,35 @@ def get_account(id: int):
     
 
 @authentication.route("/signup", methods=["POST"])
-def signup():
+def signup() -> Response:
     try:
-        data: any = request.get_json()
+        data: dict[str, str] = request.get_json()
         missing_fields: list[str] = services.get_missing_field(data)
-        optional_fields_dict: dict[str, str|None] = services.handle_optional_field_for_signup(data)
+        optional_fields_dict: dict[str, str | None] = services.handle_optional_field_for_signup(data)
 
         if len(missing_fields) != 0:
-            message = "missing field: " + ", ".join(missing_fields)
+            message: str = "missing field: " + ", ".join(missing_fields)
             return make_response(jsonify({"status": "failure", "message": message, "code": "400"}), 400)
     
         if not services.check_email_unicity(db.session, data["email"]):
-            message = "an account is already registered with this email"
+            message: str = "an account is already registered with this email"
             return make_response(jsonify({"status": "failure", "message": message, "code": "400"}), 400)
 
         if not services.check_username_unicity(db.session, data["username"]):
-            message = "the username is already taken"
+            message: str = "the username is already taken"
             return make_response(jsonify({"status": "failure", "message": message, "code": "400"}), 400)
 
-        password_validity_check = services.check_password_validity(data["password"])
-        is_password_valid = password_validity_check["validity"]
-        password_not_valid_message = password_validity_check["message"]
+        password_validity_check: dict[str, bool | list[str]] = services.check_password_validity(data["password"])
+        is_password_valid: bool = password_validity_check["validity"]
+        password_not_valid_message: list[str] = password_validity_check["message"]
         
         if not is_password_valid:
             return make_response(jsonify({"status": "failure", "message": password_not_valid_message, "code": "400"}), 400)
 
-        new_account = Account(email=data["email"], username=data["username"], 
-                              password=flask_bcrypt.generate_password_hash(data["password"]).decode("utf-8"), 
-                              gender=optional_fields_dict["gender"], phone_number=optional_fields_dict["phone_number"],
-                              address=optional_fields_dict["address"], is_logged_in=True)
+        new_account: Account = Account(email=data["email"], username=data["username"], 
+                                       password=flask_bcrypt.generate_password_hash(data["password"]).decode("utf-8"), 
+                                       gender=optional_fields_dict["gender"], phone_number=optional_fields_dict["phone_number"],
+                                       address=optional_fields_dict["address"], is_logged_in=True)
         db.session.add(new_account)
         db.session.commit()
         return make_response(jsonify({"status": "success", "message": "signup success", "code": "200"}), 200)
@@ -71,11 +74,11 @@ def signup():
         return make_response(jsonify({"status": "failure", "message": "signup request failed", "code": "500"}), 500)
 
 
-@authentication.route("/login", methods=["PATCH"])
-def login():
+@authentication.route("/login", methods=["POST"])
+def login() -> Response:
     try:
-        data = request.get_json()
-        account = db.session.query(Account).filter(Account.username == data["username"]).first()
+        data: dict[str, str] = request.get_json()
+        account: Account | None = db.session.query(Account).filter(Account.username == data["username"]).first()
 
         if account is None:
             return make_response(jsonify({"status": "failure", "message": "wrong username", "code": "400"}), 400)
@@ -87,7 +90,7 @@ def login():
         if not flask_bcrypt.check_password_hash(real_password, data["password"]):
             return make_response(jsonify({"status": "failure", "message": "wrong password", "code": "400"}), 400)
                     
-        account.is_logged_in = True
+        account.is_logged_in: bool = True
         db.session.commit()
         return make_response(jsonify({"status": "success", "message": "login success", "code": "200"}), 200)
                
@@ -96,18 +99,25 @@ def login():
         return make_response(jsonify({"status": "failure", "message": "login request failed", "code": "500"}), 500)
     
 
+@authentication.route("/home")
+#@login_required
+def home() -> Response:
+    welcome_message: str = "Welcome"
+    return welcome_message
 
-@authentication.route("/logout/<id>", methods=["PATCH"])
-def logout(id: int):
+
+@authentication.route("/logout/<id>", methods=["POST"])
+#@login_required
+def logout(id: int) -> Response:
     try:
-        account_to_logout = db.session.query(Account).filter(Account.id == id).first()
+        account_to_logout: Account | None = db.session.query(Account).filter(Account.id == id).first()
         if account_to_logout is None:
             return make_response(jsonify({"status": "failure", "message": "the account does not exist", "code": "404"}), 404)
         
         if account_to_logout.is_logged_in == False:
             return make_response(jsonify({"status": "failure", "message": "the account is already logged out", "code": "400"}), 400)
         
-        account_to_logout.is_logged_in = False
+        account_to_logout.is_logged_in: bool = False
         db.session.commit()
         return make_response(jsonify({"status": "success", "message": "the account has been logged out", "code": "200"}), 200)
             
@@ -117,10 +127,10 @@ def logout(id: int):
 
 
 @authentication.route("/accounts/<id>", methods=["PATCH"])
-def modify_content(id: int):
+def modify_content(id: int) -> Response:
     try:
-        request_params = request.get_json()
-        account_to_update = db.session.query(Account).filter(Account.id == id).first()
+        request_params: dict[str, str] = request.get_json()
+        account_to_update: Account | None = db.session.query(Account).filter(Account.id == id).first()
 
         if account_to_update is None:
             return make_response(jsonify({"status": "failure", "message": "the account does not exist", "code": "400"}), 400)
@@ -128,26 +138,27 @@ def modify_content(id: int):
         for column_name in request_params.keys():
             if column_name != "password" and column_name in Account.get_model_fields():
                 setattr(account_to_update, column_name, request_params[column_name])
+
             elif column_name == "password":
                 if "password_validation" not in request_params.keys():
-                    message = "'password_validation' field missing (should contain original password as value)"
+                    message: str = "'password_validation' field missing (should contain original password as value)"
                     return make_response(jsonify({"status": "failure", "message": message, "code": "400"}), 400)
                     
-                is_original_password_validated = flask_bcrypt.check_password_hash(account_to_update.password, 
-                                                                                  request_params["password_validation"])
+                is_original_password_validated: bool = flask_bcrypt.check_password_hash(account_to_update.password, 
+                                                                                        request_params["password_validation"])
                             
                 if not is_original_password_validated:
-                    message = "wrong original password"
+                    message: str = "wrong original password"
                     return make_response(jsonify({"status": "failure", "message": message, "code": "400"}), 400)  
                 
-                password_validity_check = services.check_password_validity(request_params[column_name])
-                is_password_valid = password_validity_check["validity"]
-                password_not_valid_message = password_validity_check["message"]
+                password_validity_check: dict[str, bool | list[str]] = services.check_password_validity(request_params[column_name])
+                is_password_valid: bool = password_validity_check["validity"]
+                password_not_valid_message: list[str] = password_validity_check["message"]
 
                 if not is_password_valid:
                     return make_response(jsonify({"status": "failure", "message": password_not_valid_message, "code": "400"}), 400)
                 
-                new_password = flask_bcrypt.generate_password_hash(request_params[column_name]).decode("utf-8")
+                new_password: str = flask_bcrypt.generate_password_hash(request_params[column_name]).decode("utf-8")
                 setattr(account_to_update, column_name, new_password)  
                         
         db.session.commit()
@@ -160,15 +171,15 @@ def modify_content(id: int):
 
 
 @authentication.route("/accounts/<id>", methods=["PUT"])
-def reset_optional_field(id: int):
+def reset_optional_field(id: int) -> Response:
     try:
-        account_to_update = db.session.query(Account).filter(Account.id == id).first()
+        account_to_update: Account | None = db.session.query(Account).filter(Account.id == id).first()
         if account_to_update is None:
             return make_response(jsonify({"status": "failure", "message": "the account does not exist", "code": "404"}), 404)
         
         required_fields: list[str] = Account.get_model_fields("required") + Account.get_model_fields("auto")
-        new_body = {param: (getattr(account_to_update, param) if param in required_fields else None) 
-                    for param in Account.__table__.columns.keys()}
+        new_body: dict[str, str | None] = {param: (getattr(account_to_update, param) if param in required_fields else None) 
+                                           for param in Account.__table__.columns.keys()}
         for column_name, new_value in new_body.items():
             setattr(account_to_update, column_name, new_value)
         db.session.commit()
@@ -181,9 +192,9 @@ def reset_optional_field(id: int):
 
 
 @authentication.route("/accounts/<id>", methods=["DELETE"])
-def delete_account(id: int):
+def delete_account(id: int) -> Response:
     try:
-        account_to_delete = db.session.query(Account).filter(Account.id == id).first()
+        account_to_delete: Account | None = db.session.query(Account).filter(Account.id == id).first()
         if account_to_delete is None:
             return make_response(jsonify({"status": "failure", "message": "the account does not exist", "code": "404"}), 404)
         
